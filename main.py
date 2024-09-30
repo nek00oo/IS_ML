@@ -10,7 +10,6 @@ def initialize_browser():
     chrome_options = Options()
 
     chrome_options.add_argument("--headless")
-    chrome_options.add_argument("--disable-gpu")
 
     chrome_service = Service(chrome_driver_path)
 
@@ -22,7 +21,7 @@ def close_browser(driver):
 
 def download_html_dynamic(driver, url):
     driver.get(url)
-    time.sleep(0.5)
+    time.sleep(1)
     page_source = driver.page_source
     return page_source
 
@@ -74,7 +73,7 @@ def get_tank_data(tank_html):
     stacionary_camo = tree.xpath('//div[@class="position-relative col-xxl-auto"]//div[@class="card-body"]//div[label[contains(text(), "Stationary camo")]]/span/text()')[0].split('/')[0].strip()
     moving_camo = tree.xpath('//div[@class="position-relative col-xxl-auto"]//div[@class="card-body"]//div[label[contains(text(), "Moving camo")]]/span/text()')[0].split('/')[0].strip()
     view_range = tree.xpath('//div[@class="position-relative col-xxl-auto"]//div[@class="card-body"]//div[label[contains(text(), "View range")]]/span/text()')[0].strip()
-    tank_cost = tree.xpath('//div[@class="position-relative col-xxl-auto"]//div[@class="card-body"]//div[label[contains(text(), "Tank cost")]]/span/var/text()')[0].strip()
+    tank_cost = tree.xpath('//div[@class="position-relative col-xxl-auto"]//div[@class="card-body"]//div[label[contains(text(), "Tank cost")]]/span/var/text()')[0].strip().replace(',', '')
 
     print("Name:", tank_name, "\ntier:", parts[1], "\nnation:", parts[2], "\ntype:", parts[3] + ' ' + parts[4],
           "\nDamage:", damage, "\nDPM:", dpm, "\nDispersion:", dispersion, "\nCaliber (mm):", caliber,
