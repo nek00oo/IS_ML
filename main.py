@@ -4,7 +4,6 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 import time
 
-
 def initialize_browser():
     chrome_driver_path = "C:\\Users\\valer\\Downloads\\chromedriver-win64\\chromedriver.exe"
     chrome_options = Options()
@@ -47,62 +46,75 @@ def get_tank_list_url_from_html(file_path):
 
     tank_links = tanks_block.xpath('.//a')
 
-    tanks_data = []
+    tank_list_url = []
     for tank in tank_links:
         tank_url = tank.get('href')
-        tanks_data.append(tank_url)
+        tank_list_url.append(tank_url)
 
-    return tanks_data
+    return tank_list_url
 
-def get_tank_data(tank_html):
-    tree = html.fromstring(tank_html)
+def parse_features(elements):
+    stats = {}
+
+    for element in elements:
+        stat_lines = element.xpath('.//div[contains(@class, "stat-line")]')
+
+        for stat_line in stat_lines:
+            label = stat_line.xpath('.//label/text()')
+            value = stat_line.xpath('.//span//text()')
+
+            if label and value:
+                label_text = label[0].strip()
+                value_text = value[0].strip().replace(',', '')
+
+                if '/' in value_text:
+                    values = value_text.split('/')
+                    for i, val in enumerate(values):
+                        stats[f"{label_text} part {i + 1}"] = val.strip()
+                else:
+                    stats[label_text] = value_text
+
+    return stats
+
+def parse_category(string):
+    if len(string) > 5:
+        del string[2]
+        if len(string) > 6:
+            del string[2]
+    category = dict()
+    category["Tier"] = string[1]
+    category["Nationality"] = string[2]
+    category["Type"] = string[3] + ' ' + string[4]
+
+    return category
+
+def parse_samples(htm):
+    tree = html.fromstring(htm)
+
     tank_name = tree.xpath('//div[@class="tank"]/h1/text()')[0].strip()
-    #tank_image = tree.xpath('//div[@class="tank"]/img/@src')[0].strip()
-    #if tank_image:
-
     parts = tree.xpath('//div[@class="tank"]/h1/small/text()')[0].strip().split()
-    if len(parts) > 5:
-        del parts[2]
-        if len(parts) > 6:
-            del parts[2]
 
-    dpm = tree.xpath('//div[@class="mb-3 mb-md-0 ps-xxl-0 col-xxl-auto"]//div[@class="card-body"]//div[label[contains(text(), "DPM")]]/span/text()')[0].strip().replace(',', '')
-    damage = tree.xpath('//div[@class="mb-3 mb-md-0 ps-xxl-0 col-xxl-auto"]//div[@class="card-body"]//div[label[contains(text(), "Damage")]]/span/text()')[0].strip()
-    dispersion = tree.xpath('//div[@class="mb-3 mb-md-0 ps-xxl-0 col-xxl-auto"]//div[@class="card-body"]//div[label[contains(text(), "Dispersion")]]/span/text()')[0].strip()
-    caliber = tree.xpath('//div[@class="mb-3 mb-md-0 ps-xxl-0 col-xxl-auto"]//div[@class="card-body"]//div[label[contains(text(), "Caliber")]]/span/text()')[0].strip()
-    top_speed = tree.xpath('//div[@class="col-xxl-auto"]//div[@class="card-body"]//div[@class="stat-line highlight"]/span/text()')[0].strip()
-    hp = tree.xpath('//div[@class="position-relative col-xxl-auto"]//div[@class="card-body"]//div[label[text()="Health"]]/span/text()')[0].strip().replace(',', '')
-    total_weight = tree.xpath('//div[@class="position-relative col-xxl-auto"]//div[@class="card-body"]//div[label[contains(text(), "Total weight")]]/span/text()')[0].strip().replace(',', '')
-    stacionary_camo = tree.xpath('//div[@class="position-relative col-xxl-auto"]//div[@class="card-body"]//div[label[contains(text(), "Stationary camo")]]/span/text()')[0].split('/')[0].strip()
-    moving_camo = tree.xpath('//div[@class="position-relative col-xxl-auto"]//div[@class="card-body"]//div[label[contains(text(), "Moving camo")]]/span/text()')[0].split('/')[0].strip()
-    view_range = tree.xpath('//div[@class="position-relative col-xxl-auto"]//div[@class="card-body"]//div[label[contains(text(), "View range")]]/span/text()')[0].strip()
-    tank_cost = tree.xpath('//div[@class="position-relative col-xxl-auto"]//div[@class="card-body"]//div[label[contains(text(), "Tank cost")]]/span/var/text()')[0].strip().replace(',', '')
+    category = parse_category(parts)
 
-    print("Name:", tank_name, "\ntier:", parts[1], "\nnation:", parts[2], "\ntype:", parts[3] + ' ' + parts[4],
-          "\nDamage:", damage, "\nDPM:", dpm, "\nDispersion:", dispersion, "\nCaliber (mm):", caliber,
-          "\nTop speed (km/h):", top_speed, "\nHP:", hp, "\nTotal weight:", total_weight,
-          "\nStationary camo:", stacionary_camo, "\nMoving camo:", moving_camo,
-          "\nView range:", view_range, "\nTank cost:", tank_cost)
+    weaponry = tree.xpath('//div[@class="mb-3 mb-md-0 ps-xxl-0 col-xxl-auto"]')
+    mobility = tree.xpath('//div[@class="col-xxl-auto"]')
+    everything = tree.xpath('//div[@class="position-relative col-xxl-auto"]')
 
-    return {
-        'Name': tank_name,
-        'Lvl': parts[1],
-        'Nation': parts[2],
-        'Tank_type': parts[3] + ' ' + parts[4],
-        'DPM': dpm,
-        'Damage': damage,
-        'Dispersion': dispersion,
-        'Caliber (mm)': caliber,
-        'Top_speed (km/h)': top_speed,
-        'HP': hp,
-        'Total weight': total_weight,
-        'Stacionary_camo (%)': stacionary_camo,
-        'Moving_camo (%)': moving_camo,
-        'View_range (m)': view_range,
-        'Tank_cost': tank_cost            #Нужно ещё будет как-то поработать с золотом/серебром
-    }
+    weaponry_features = parse_features(weaponry)
+    mobility_features = parse_features(mobility)
+    everything_features = parse_features(everything)
 
+    all_features = dict()
+    all_features['Name'] = tank_name
+    all_features.update(category)
+    all_features.update(weaponry_features)
+    all_features.update(mobility_features)
+    all_features.update(everything_features)
 
+    for key, value in all_features.items():
+        print(f"{key}: {value}")
+
+    return all_features
 
 if __name__ == '__main__':
     tanks_data = get_tank_list_url_from_html("tank_list_dynamic.html")
@@ -114,8 +126,8 @@ if __name__ == '__main__':
         tank_html = get_tank_html(web_driver, tank_url)
 
         if tank_html:
-            tank_info = get_tank_data(tank_html)
+            tank_info = parse_samples(tank_html)
             all_tanks_data.append(tank_info)
-            print(f"Данные о танке {tank_info['Name']} успешно добавлены.")
+            print(f"Данные о танке {tank_info['Name']} успешно добавлены.\n")
 
     close_browser(web_driver)
