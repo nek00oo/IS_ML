@@ -3,6 +3,29 @@ from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 import time
+import csv
+
+
+def save_to_tsv(data, filename):
+    # Собираем все возможные ключи (признаки) из всех танков
+    all_headers = set()
+    for tank in data:
+        all_headers.update(tank.keys())
+
+    all_headers = list(all_headers)  # Преобразуем в список для упорядоченности
+
+    # Открываем файл для записи
+    with open(filename, mode='w', newline='', encoding='utf-8') as file:
+        writer = csv.writer(file, delimiter='\t')
+
+        # Записываем заголовки
+        writer.writerow(all_headers)
+
+        # Записываем данные, заполняя пропуски значением по умолчанию ("N/A")
+        for tank in data:
+            row = [tank.get(header, "N/A") for header in all_headers]
+            writer.writerow(row)
+
 
 def initialize_browser():
     chrome_driver_path = "C:\\Users\\valer\\Downloads\\chromedriver-win64\\chromedriver.exe"
@@ -55,6 +78,15 @@ def get_tank_list_url_from_html(file_path):
 
 def parse_features(elements):
     stats = {}
+    last_highlighted_label = None
+
+    def process_value(base_label, value_text):
+        if '/' in value_text:
+            values = value_text.split('/')
+            for i, val in enumerate(values):
+                stats[f"{base_label} part {i + 1}"] = val.strip()
+        else:
+            stats[base_label] = value_text
 
     for element in elements:
         stat_lines = element.xpath('.//div[contains(@class, "stat-line")]')
@@ -63,17 +95,24 @@ def parse_features(elements):
             label = stat_line.xpath('.//label/text()')
             value = stat_line.xpath('.//span//text()')
 
+            if label and 'highlight' in stat_line.get('class', ''):
+                last_highlighted_label = label[0].strip()
+
             if label and value:
                 label_text = label[0].strip()
                 value_text = value[0].strip().replace(',', '')
 
-                if '/' in value_text:
-                    values = value_text.split('/')
-                    for i, val in enumerate(values):
-                        stats[f"{label_text} part {i + 1}"] = val.strip()
-                else:
-                    stats[label_text] = value_text
+                if 'repaired' in label_text:
+                    continue
 
+                if label_text.startswith('…') and last_highlighted_label:
+                    full_label = f"{last_highlighted_label} {label_text.strip('…').strip()}"
+                    process_value(full_label, value_text)
+                else:
+                    if label_text == "Tank cost":
+                        class_name = stat_line.xpath('.//span/*/@class')[0]
+                        label_text = f"{label_text} ({class_name})"
+                    process_value(label_text, value_text)
     return stats
 
 def parse_category(string):
@@ -120,14 +159,19 @@ if __name__ == '__main__':
     tanks_data = get_tank_list_url_from_html("tank_list_dynamic.html")
     all_tanks_data = []
     web_driver = initialize_browser()
-
+    i = 0
     for tank_url in tanks_data:
+        if i == 10:
+            break
         print(f"Обрабатываю танк {tank_url}...")
         tank_html = get_tank_html(web_driver, tank_url)
 
         if tank_html:
+            i=i+1
             tank_info = parse_samples(tank_html)
             all_tanks_data.append(tank_info)
             print(f"Данные о танке {tank_info['Name']} успешно добавлены.\n")
 
     close_browser(web_driver)
+
+    save_to_tsv(all_tanks_data, 'tanks_data.tsv')
