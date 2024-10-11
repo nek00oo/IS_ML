@@ -17,7 +17,7 @@ def initialize_browser():
     return driver
 
 def close_browser(driver):
-    driver.quit()  #close
+    driver.quit()
 
 def download_html_dynamic(driver, url):
     driver.get(url)
@@ -57,6 +57,9 @@ def get_tank_list_url_from_html(file_path):
 def get_tank_data(tank_html):
     tree = html.fromstring(tank_html)
     tank_name = tree.xpath('//div[@class="tank"]/h1/text()')[0].strip()
+    #tank_image = tree.xpath('//div[@class="tank"]/img/@src')[0].strip()
+    #if tank_image:
+
     parts = tree.xpath('//div[@class="tank"]/h1/small/text()')[0].strip().split()
     if len(parts) > 5:
         del parts[2]
