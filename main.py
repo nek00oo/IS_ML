@@ -2,29 +2,28 @@ from lxml import html
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
+import re
 import time
 import csv
 
 
 def save_to_tsv(data, filename):
-    # Собираем все возможные ключи (признаки) из всех танков
-    all_headers = set()
+    all_headers = {}
+
     for tank in data:
-        all_headers.update(tank.keys())
+        for key in tank.keys():
+            all_headers[key] = None
 
-    all_headers = list(all_headers)  # Преобразуем в список для упорядоченности
+    all_headers = list(all_headers.keys())
 
-    # Открываем файл для записи
     with open(filename, mode='w', newline='', encoding='utf-8') as file:
         writer = csv.writer(file, delimiter='\t')
-
-        # Записываем заголовки
         writer.writerow(all_headers)
 
-        # Записываем данные, заполняя пропуски значением по умолчанию ("N/A")
         for tank in data:
             row = [tank.get(header, "N/A") for header in all_headers]
             writer.writerow(row)
+
 
 
 def initialize_browser():
@@ -43,7 +42,7 @@ def close_browser(driver):
 
 def download_html_dynamic(driver, url):
     driver.get(url)
-    time.sleep(1)
+    time.sleep(0.5)
     page_source = driver.page_source
     return page_source
 
@@ -115,25 +114,30 @@ def parse_features(elements):
                     process_value(label_text, value_text)
     return stats
 
-def parse_category(string):
-    if len(string) > 5:
-        del string[2]
-        if len(string) > 6:
-            del string[2]
-    category = dict()
-    category["Tier"] = string[1]
-    category["Nationality"] = string[2]
-    category["Type"] = string[3] + ' ' + string[4]
+def parse_tank_description(description):
+    pattern = r"(?P<tier>Tier\s+\w+)(?P<premium_reward_event>\s+(Premium|Reward|Event))?\s+(?:Steel\s+Hunter\s+)?(?P<nationality>\w+)\s+(?P<type>.*)"
 
-    return category
+    match = re.match(pattern, description)
+    if match:
+        tank_info = match.groupdict()
+        return {
+            'Tier': tank_info['tier'].split()[-1],  # Уровень танка
+            'Premium': tank_info['premium_reward_event'] == ' Premium',
+            'Reward': tank_info['premium_reward_event'] == ' Reward',
+            'Event': tank_info['premium_reward_event'] == ' Event',
+            'Nationality': tank_info['nationality'],
+            'Type': tank_info['type']
+        }
+    else:
+        return None
 
 def parse_samples(htm):
     tree = html.fromstring(htm)
 
     tank_name = tree.xpath('//div[@class="tank"]/h1/text()')[0].strip()
-    parts = tree.xpath('//div[@class="tank"]/h1/small/text()')[0].strip().split()
+    parts = tree.xpath('//div[@class="tank"]/h1/small/text()')[0].strip()
 
-    category = parse_category(parts)
+    category = parse_tank_description(parts)
 
     weaponry = tree.xpath('//div[@class="mb-3 mb-md-0 ps-xxl-0 col-xxl-auto"]')
     mobility = tree.xpath('//div[@class="col-xxl-auto"]')
@@ -150,24 +154,18 @@ def parse_samples(htm):
     all_features.update(mobility_features)
     all_features.update(everything_features)
 
-    for key, value in all_features.items():
-        print(f"{key}: {value}")
-
     return all_features
 
 if __name__ == '__main__':
     tanks_data = get_tank_list_url_from_html("tank_list_dynamic.html")
     all_tanks_data = []
     web_driver = initialize_browser()
-    i = 0
+
     for tank_url in tanks_data:
-        if i == 10:
-            break
         print(f"Обрабатываю танк {tank_url}...")
         tank_html = get_tank_html(web_driver, tank_url)
 
         if tank_html:
-            i=i+1
             tank_info = parse_samples(tank_html)
             all_tanks_data.append(tank_info)
             print(f"Данные о танке {tank_info['Name']} успешно добавлены.\n")
