@@ -21,10 +21,8 @@ def save_to_tsv(data, filename):
         writer.writerow(all_headers)
 
         for tank in data:
-            row = [tank.get(header, "N/A") for header in all_headers]
+            row = [tank.get(header, '') for header in all_headers]
             writer.writerow(row)
-
-
 
 def initialize_browser():
     chrome_driver_path = "C:\\Users\\valer\\Downloads\\chromedriver-win64\\chromedriver.exe"
@@ -121,7 +119,7 @@ def parse_tank_description(description):
     if match:
         tank_info = match.groupdict()
         return {
-            'Tier': tank_info['tier'].split()[-1],  # Уровень танка
+            'Tier': tank_info['tier'].split()[-1],
             'Premium': tank_info['premium_reward_event'] == ' Premium',
             'Reward': tank_info['premium_reward_event'] == ' Reward',
             'Event': tank_info['premium_reward_event'] == ' Event',
