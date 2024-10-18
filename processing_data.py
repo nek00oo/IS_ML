@@ -19,6 +19,19 @@ def detect_categorical_and_numerical(data, target_column):
     return list(categorical_columns), list(numerical_columns)
 
 
+def label_encode_column(data, column_name):
+    label_mapping = {value: index for index, value in
+                     enumerate(sorted(set(row[column_name] for row in data if row[column_name] != '')))}
+
+    for row in data:
+        if row[column_name] in label_mapping:
+            row[column_name] = label_mapping[row[column_name]]
+        else:
+            row[column_name] = None
+
+    return data, label_mapping
+
+
 def one_hot_encode(data, columns_to_encode):
     new_data = []
     one_hot_mappings = {}
@@ -26,6 +39,9 @@ def one_hot_encode(data, columns_to_encode):
     for row in data:
         new_row = row.copy()
         for column in columns_to_encode:
+            if column == 'Name':
+                continue
+
             value = row[column]
             if column not in one_hot_mappings:
                 one_hot_mappings[column] = sorted(set(r[column] for r in data if r[column] is not None))
@@ -69,7 +85,9 @@ def preprocess_data(input_filename, output_filename, target_column):
 
     categorical_columns, numerical_columns = detect_categorical_and_numerical(data, target_column)
 
-    data = one_hot_encode(data, categorical_columns)
+    data, label_mapping = label_encode_column(data, 'Name')
+
+    data = one_hot_encode(data, [col for col in categorical_columns if col != 'Name'])
 
     data = normalize_data(data, numerical_columns)
 
@@ -77,5 +95,7 @@ def preprocess_data(input_filename, output_filename, target_column):
         writer = csv.DictWriter(outfile, fieldnames=data[0].keys())
         writer.writeheader()
         writer.writerows(data)
+
+    print("Преобразованные данные сохранены в файл", output_filename)
 
 preprocess_data('tanks_data.tsv', 'tanks_data.csv', target_column='Type')
