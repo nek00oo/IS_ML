@@ -78,7 +78,4 @@ def preprocess_data(input_filename, output_filename, target_column):
         writer.writeheader()
         writer.writerows(data)
 
-    print("Преобразованные данные сохранены в файл", output_filename)
-
-# Пример использования
 preprocess_data('tanks_data.tsv', 'tanks_data.csv', target_column='Type')
