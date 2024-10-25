@@ -31,7 +31,11 @@ def tsv_to_arff(tsv_filename, arff_filename, relation_name="tanks_data"):
         arff_file.write("\n@data\n")
 
         for row in data_rows:
-            arff_file.write(','.join([value if value != '' else '?' for value in row]) + "\n")
+            formatted_row = [
+                f"'{value}'" if attribute_types[headers[index]] == "STRING" and value != '' else value if value != '' else '?'
+                for index, value in enumerate(row)
+            ]
+            arff_file.write(','.join(formatted_row) + "\n")
 
 
 tsv_filename = 'tanks_data.tsv'
