@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 from sklearn.neighbors import NearestNeighbors
 from scipy.spatial.distance import cosine, minkowski
 
@@ -31,13 +32,15 @@ class ClassifierKNN:
 
     def predict(self, X_test):
         predictions = []
-        for x in X_test:
+        for i in range(X_test.shape[0]):
+            x = X_test.iloc[i].values
             distances, indices = self.neigh.kneighbors([x])
             distances, indices = distances[0], indices[0]
             weights = self.calculate_weights(distances)
             votes = self.vote(indices, weights)
             predictions.append(votes)
-        return np.array(predictions)
+
+        return pd.Series(predictions, index=X_test.index)
 
     def calculate_weights(self, distances):
         if self.window_size:
