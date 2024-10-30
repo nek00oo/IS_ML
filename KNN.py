@@ -48,11 +48,11 @@ class ClassifierKNN:
         weights = []
         for dist in distances:
             if self.kernel == 'uniform':
-                weights.append(1 if dist <= 1 else 0)
+                weights.append(1 if np.abs(dist) < 1 else 0) # тут вроде нужно dist < 1
             elif self.kernel == 'gaussian':
-                weights.append(np.exp(-dist ** 2 / 2))
+                weights.append((1/np.sqrt(2*np.pi))*np.exp(-dist ** 2 / 2))
             elif self.kernel == 'epanechnikov':
-                weights.append(max(0, 1 - dist ** 2))
+                weights.append(3/4 * (1 - dist ** 2) if np.abs(dist) < 1 else 0)
             elif self.kernel == 'general':
                 weights.append(max(0, (1 - abs(dist) ** self.a) ** self.b))
             else:
