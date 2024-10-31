@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+from sklearn.metrics import accuracy_score
 from scipy.spatial.distance import cosine, minkowski
 
 class ClassifierKNN:
@@ -72,3 +73,23 @@ class ClassifierKNN:
             return np.linalg.norm(x1 - x2)
         else:
             raise ValueError("Неизвестная метрика")
+
+    def score(self, X, y):
+        y_pred = self.predict(X)
+        return accuracy_score(y, y_pred)
+
+    def get_params(self, deep=True):
+        return {
+            'n_neighbors': self.n_neighbors,
+            'window_size': self.window_size,
+            'metric': self.metric,
+            'kernel': self.kernel,
+            'a': self.a,
+            'b': self.b,
+            'weights': self.weights
+        }
+
+    def set_params(self, **params):
+        for key, value in params.items():
+            setattr(self, key, value)
+        return self
