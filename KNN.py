@@ -86,36 +86,31 @@ class ClassifierKNN:
         else:
             raise ValueError("Неизвестная метрика")
 
-    def lowess(self, kernel='gaussian', iterations=10):
+    def lowess(self, kernel='gaussian'):
         lowess_weights = np.ones(len(self.X_train))
 
-        for _ in range(iterations):
-            new_weights = []
+        for i in range(len(self.X_train)):
+            x = self.X_train.iloc[i].values
+            y = self.y_train.iloc[i]
 
-            for i in range(len(self.X_train)):
-                x = self.X_train.iloc[i].values
-                y = self.y_train.iloc[i]
+            x_train_excluded = np.delete(self.X_train.values, i, axis=0)
+            y_train_excluded = np.delete(self.y_train.values, i)
 
-                x_train_excluded = np.delete(self.X_train.values, i, axis=0)
-                y_train_excluded = np.delete(self.y_train.values, i)
+            distances = np.array([self.distance(x, train_x) for train_x in x_train_excluded])
+            indices = np.argpartition(distances, self.n_neighbors)[:self.n_neighbors]
 
-                distances = np.array([self.distance(x, train_x) for train_x in x_train_excluded])
-                indices = np.argpartition(distances, self.n_neighbors)[:self.n_neighbors]
+            nearest_labels = y_train_excluded[indices]
 
-                neighbor_labels = y_train_excluded[indices]
+            amount_matching_neighbors = sum(1 for label in nearest_labels if label == y)
 
-                amount_of_matching_neighbors = sum(1 for label in neighbor_labels if label == y)
+            if amount_matching_neighbors == 0:
+                amount_matching_neighbors += np.finfo(float).eps
 
-                if amount_of_matching_neighbors == 0:
-                    amount_of_matching_neighbors += np.finfo(float).eps
-
-                proportion = len(neighbor_labels) / amount_of_matching_neighbors
-                weight = self.lowess_calculate_weights(proportion, kernel=kernel)
-                if weight < 0:
-                    weight = np.finfo(float).eps
-                new_weights.append(weight)
-
-            lowess_weights = new_weights
+            prop = len(nearest_labels) / amount_matching_neighbors
+            weight = self.lowess_calculate_weights(prop, kernel=kernel)
+            if weight < 0:
+                weight = np.finfo(float).eps
+            lowess_weights[i] = weight
 
         return lowess_weights
 
