@@ -28,8 +28,8 @@ class ClassifierKNN:
                 indices = np.argpartition(distances, self.n_neighbors)[:self.n_neighbors]
             else:
                 indices = np.where(distances < self.window_size)[0]
-                if len(indices) == 0:
-                    raise ValueError(f"Нет объектов, подходящих под условия (радиус окна {self.window_size}) для объекта {i}.")
+                # if len(indices) == 0:
+                #     raise ValueError(f"Нет объектов, подходящих под условия (радиус окна {self.window_size}) для объекта {i}.")
 
             nearest_distances = distances[indices]
             weights = self.calculate_weights(nearest_distances)
@@ -45,12 +45,24 @@ class ClassifierKNN:
             elif self.kernel == 'gaussian':
                 weights.append((1 / np.sqrt(2 * np.pi)) * np.exp(-dist ** 2 / 2))
             elif self.kernel == 'epanechnikov':
-                weights.append(3 / 4 * (1 - dist ** 2) if np.abs(dist) < 1 else 0)
+                weights.append(0.75 * (1 - dist ** 2) if np.abs(dist) < 1 else 0)
             elif self.kernel == 'general':
                 weights.append(max(0, (1 - abs(dist) ** self.a) ** self.b))
             else:
                 raise ValueError("Неизвестное ядро")
         return np.array(weights)
+
+    def lowess_calculate_weights(self, proportion, kernel='gaussian'):
+        if kernel == 'uniform':
+            return 1 if np.abs(proportion) < 1 else 0
+        elif kernel == 'gaussian':
+            return (1 / np.sqrt(2 * np.pi)) * np.exp(-0.5 * (proportion ** 2))
+        elif kernel == 'epanechnikov':
+            return 0.75 * (1 - proportion ** 2) if np.abs(proportion) < 1 else 0
+        elif kernel == 'general':
+            return (1 - np.abs(proportion) ** self.a) ** self.b
+        else:
+            raise ValueError("Неизвестное ядро")
 
     def vote(self, indices, weights):
         unique_classes = np.unique(self.y_train)
@@ -67,12 +79,45 @@ class ClassifierKNN:
         if self.metric == 'cosine':
             return cosine(x1, x2)
         elif self.metric.startswith('minkowski'):
-            p = int(self.metric.split('_')[1])
+            p = float(self.metric.split('_')[1])
             return minkowski(x1, x2, p)
         elif self.metric == 'euclidean':
             return np.linalg.norm(x1 - x2)
         else:
             raise ValueError("Неизвестная метрика")
+
+    def lowess(self, kernel='gaussian', iterations=10):
+        lowess_weights = np.ones(len(self.X_train))
+
+        for _ in range(iterations):
+            new_weights = []
+
+            for i in range(len(self.X_train)):
+                x = self.X_train.iloc[i].values
+                y = self.y_train.iloc[i]
+
+                x_train_excluded = np.delete(self.X_train.values, i, axis=0)
+                y_train_excluded = np.delete(self.y_train.values, i)
+
+                distances = np.array([self.distance(x, train_x) for train_x in x_train_excluded])
+                indices = np.argpartition(distances, self.n_neighbors)[:self.n_neighbors]
+
+                neighbor_labels = y_train_excluded[indices]
+
+                amount_of_matching_neighbors = sum(1 for label in neighbor_labels if label == y)
+
+                if amount_of_matching_neighbors == 0:
+                    amount_of_matching_neighbors += np.finfo(float).eps
+
+                proportion = len(neighbor_labels) / amount_of_matching_neighbors
+                weight = self.lowess_calculate_weights(proportion, kernel=kernel)
+                if weight < 0:
+                    weight = np.finfo(float).eps
+                new_weights.append(weight)
+
+            lowess_weights = new_weights
+
+        return lowess_weights
 
     def score(self, X, y):
         y_pred = self.predict(X)
