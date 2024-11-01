@@ -64,13 +64,24 @@ class ClassifierKNN:
         else:
             raise ValueError("Неизвестное ядро")
 
+    # def vote(self, indices, weights):
+    #     unique_classes = np.unique(self.y_train)
+    #     class_votes = {label: 0 for label in unique_classes}
+    #
+    #     for i, idx in enumerate(indices):
+    #         label = self.y_train.iloc[idx]
+    #         prior_weight = self.weights[label] if self.weights is not None else 1
+    #         class_votes[label] += weights[i] * prior_weight
+    #
+    #     return max(class_votes, key=class_votes.get)
+
     def vote(self, indices, weights):
         unique_classes = np.unique(self.y_train)
         class_votes = {label: 0 for label in unique_classes}
 
         for i, idx in enumerate(indices):
             label = self.y_train.iloc[idx]
-            prior_weight = self.weights[label] if self.weights is not None else 1
+            prior_weight = self.weights[idx] if self.weights is not None else 1
             class_votes[label] += weights[i] * prior_weight
 
         return max(class_votes, key=class_votes.get)
