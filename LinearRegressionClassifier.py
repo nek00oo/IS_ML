@@ -1,5 +1,5 @@
 import numpy as np
-
+from sklearn.metrics import accuracy_score
 
 class RidgeRegressionClassifier:
     def __init__(self, alpha=1.0):
@@ -38,6 +38,7 @@ class LinearClassifierGD:
         self.bias = None
         self.classes_ = None
         self.loss_history = []
+        self.accuracy_history = []
 
     def _margin(self, X, y):
         return y * (X @ self.weights + self.bias)
@@ -71,7 +72,7 @@ class LinearClassifierGD:
 
         return loss, dW, db
 
-    def fit(self, X, y):
+    def fit(self, X, y, X_test=None, y_test=None):
         self.classes_ = np.unique(y)
         if len(self.classes_) != 2:
             raise ValueError("Метод поддерживает только бинарную классификацию.")
@@ -91,6 +92,10 @@ class LinearClassifierGD:
             self.bias -= self.learning_rate * db
             self.loss_history.append(loss)
 
+            if X_test is not None and y_test is not None:
+                accuracy = self._compute_accuracy(X_test, y_test)
+                self.accuracy_history.append(accuracy)
+
     def predict(self, X):
         y_pred = np.sign(X @ self.weights + self.bias)
         y_pred_labels = np.where(y_pred == -1, self.classes_[0], self.classes_[1])
@@ -99,6 +104,13 @@ class LinearClassifierGD:
 
     def _get_loss_history(self):
         return self.loss_history
+
+    def _get_accuracy_history(self):
+        return self.accuracy_history
+
+    def _compute_accuracy(self, X_test, y_test):
+        y_pred = self.predict(X_test)
+        return accuracy_score(y_test, y_pred)
 
     def get_params(self, deep=True):
         return {
@@ -128,6 +140,7 @@ class SVMClassifier:
         self.classes_ = None
         self.X_train = None  # Сохраняем обучающие данные для работы с ядром
         self.loss_history = []
+        self.accuracy_history = []
 
     def _linear_kernel(self, X1, X2):
         return X1 @ X2.T
@@ -159,7 +172,11 @@ class SVMClassifier:
     def _compute_loss(self, margins):
         return np.maximum(0, 1 - margins).mean()
 
-    def fit(self, X, y):
+    def _compute_accuracy(self, X_test, y_test):
+        y_pred = self.predict(X_test)
+        return accuracy_score(y_test, y_pred)
+
+    def fit(self, X, y, X_test=None, y_test=None):
         n_samples, n_features = X.shape
         self.classes_ = np.unique(y)
         if len(self.classes_) != 2:
@@ -186,6 +203,10 @@ class SVMClassifier:
             loss = self._compute_loss(margins)
             self.loss_history.append(loss)
 
+            if X_test is not None and y_test is not None:
+                accuracy = self._compute_accuracy(X_test, y_test)
+                self.accuracy_history.append(accuracy)
+
     def predict(self, X):
         K_test = self._compute_kernel(X, self.X_train)
         margins = K_test @ self.alpha + self.bias
@@ -194,6 +215,9 @@ class SVMClassifier:
 
     def _get_loss_history(self):
         return self.loss_history
+
+    def _get_accuracy_history(self):
+        return self.accuracy_history
 
     def get_params(self, deep=True):
         return {
