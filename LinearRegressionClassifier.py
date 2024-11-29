@@ -85,12 +85,20 @@ class LinearClassifierGD:
         self.bias = 0
         self.loss_history = []
 
+        prev_loss = float('inf')
+
         for i in range(self.max_iter):
             loss, dW, db = self._loss_and_gradient(X, y_binary)
 
             self.weights -= self.learning_rate * dW
             self.bias -= self.learning_rate * db
             self.loss_history.append(loss)
+
+            if abs(prev_loss - loss) < 1e-5:
+                print(f"Сходимость достигнута на {i} итерации")
+                break
+
+            prev_loss = loss
 
             if X_test is not None and y_test is not None:
                 accuracy = self._compute_accuracy(X_test, y_test)
@@ -135,10 +143,10 @@ class SVMClassifier:
         self.max_iter = max_iter
         self.degree = degree
         self.gamma = gamma
-        self.alpha = None  # Коэффициенты альфа для SVM с ядрами
+        self.alpha = None
         self.bias = 0
         self.classes_ = None
-        self.X_train = None  # Сохраняем обучающие данные для работы с ядром
+        self.X_train = None
         self.loss_history = []
         self.accuracy_history = []
 
@@ -189,8 +197,9 @@ class SVMClassifier:
         self.X_train = X
 
         K = self._compute_kernel(X, X)
+        prev_loss = float('inf')
 
-        for _ in range(self.max_iter):
+        for i in range(self.max_iter):
             margins = y_binary * (K @ self.alpha + self.bias)
             loss_grad = np.where(margins < 1, -y_binary, 0)
 
@@ -202,6 +211,12 @@ class SVMClassifier:
 
             loss = self._compute_loss(margins)
             self.loss_history.append(loss)
+
+            if abs(prev_loss - loss) < 1e-5:
+                print(f"Сходимость достигнута на {i} итерации")
+                break
+
+            prev_loss = loss
 
             if X_test is not None and y_test is not None:
                 accuracy = self._compute_accuracy(X_test, y_test)
