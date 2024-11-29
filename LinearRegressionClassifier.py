@@ -110,10 +110,10 @@ class LinearClassifierGD:
 
         return y_pred_labels
 
-    def _get_loss_history(self):
+    def get_loss_history(self):
         return self.loss_history
 
-    def _get_accuracy_history(self):
+    def get_accuracy_history(self):
         return self.accuracy_history
 
     def _compute_accuracy(self, X_test, y_test):
@@ -136,7 +136,7 @@ class LinearClassifierGD:
 
 
 class SVMClassifier:
-    def __init__(self, kernel='linear', C=1.0, learning_rate=0.01, max_iter=1000, degree=3, gamma='scale'):
+    def __init__(self, kernel='linear', C=1.0, learning_rate=0.01, max_iter=1000, degree=3, gamma=0.1):
         self.kernel = kernel
         self.C = C
         self.learning_rate = learning_rate
@@ -157,14 +157,9 @@ class SVMClassifier:
         return (X1 @ X2.T + 1) ** self.degree
 
     def _rbf_kernel(self, X1, X2):
-        if self.gamma == 'scale':
-            gamma = 1 / X1.shape[1]
-        else:
-            gamma = self.gamma
-
         X1 = np.asarray(X1)
         X2 = np.asarray(X2)
-        K = np.exp(-gamma * np.sum((X1[:, np.newaxis] - X2) ** 2, axis=2))
+        K = np.exp(-self.gamma * np.sum((X1[:, np.newaxis] - X2) ** 2, axis=2))
         return K
 
     def _compute_kernel(self, X1, X2):
@@ -228,10 +223,10 @@ class SVMClassifier:
         predictions = np.sign(margins)
         return np.where(predictions == -1, self.classes_[0], self.classes_[1])
 
-    def _get_loss_history(self):
+    def get_loss_history(self):
         return self.loss_history
 
-    def _get_accuracy_history(self):
+    def get_accuracy_history(self):
         return self.accuracy_history
 
     def get_params(self, deep=True):
