@@ -10,7 +10,7 @@ class RidgeRegressionClassifier:
     def fit(self, X, y):
         self.classes_ = np.unique(y)
         if len(self.classes_) != 2:
-            raise ValueError("Должно быть ровно два уникальных класса.")
+            raise ValueError("Метод поддерживает только бинарную классификацию.")
 
         y_binary = np.where(y == self.classes_[0], -1, 1)
 
@@ -29,15 +29,6 @@ class RidgeRegressionClassifier:
 
 class LinearClassifierGD:
     def __init__(self, alpha=0.5, lambda_=0.1, learning_rate=0.01, max_iter=1000, loss="logistic"):
-        """
-        Линейный классификатор с градиентным спуском и Elastic Net регуляризацией.
-
-        alpha: float, вес L1-регуляризации в Elastic Net (0 <= alpha <= 1)
-        lambda_: float, коэффициент регуляризации
-        learning_rate: float, шаг градиентного спуска
-        max_iter: int, максимальное количество итераций
-        loss: str, вид эмпирического риска ("linear", "squared", "logistic")
-        """
         self.alpha = alpha
         self.lambda_ = lambda_
         self.learning_rate = learning_rate
@@ -46,13 +37,12 @@ class LinearClassifierGD:
         self.weights = None
         self.bias = None
         self.classes_ = None
+        self.loss_history = []
 
     def _margin(self, X, y):
-        """Вычисляет отступ M = y * (w^T * x + b)."""
         return y * (X @ self.weights + self.bias)
 
     def _loss_and_gradient(self, X, y):
-        """Вычисляет значение эмпирического риска и его градиент."""
         margins = self._margin(X, y)
 
         if self.loss == "linear":
@@ -64,15 +54,11 @@ class LinearClassifierGD:
         else:
             raise ValueError("Неизвестная функция потерь: " + self.loss)
 
-        # Градиент по весам
         dW = (loss_grad.values[:, np.newaxis] * X).mean(axis=0)
-        # Градиент по смещению
         db = loss_grad.mean()
 
-        # Elastic Net регуляризация
         dW += self.lambda_ * (self.alpha * np.sign(self.weights) + (1 - self.alpha) * 2 * self.weights)
 
-        # Эмпирический риск
         if self.loss == "linear":
             loss = np.maximum(0, -margins).mean()
         elif self.loss == "squared":
@@ -86,44 +72,47 @@ class LinearClassifierGD:
         return loss, dW, db
 
     def fit(self, X, y):
-        """
-        Обучение модели.
-        X: матрица признаков (n_samples, n_features)
-        y: целевая переменная (n_samples,)
-        """
-        # Преобразование меток в бинарный формат
         self.classes_ = np.unique(y)
         if len(self.classes_) != 2:
             raise ValueError("Метод поддерживает только бинарную классификацию.")
 
-        # Преобразуем метки классов: один класс в -1, другой в +1
         y_binary = np.where(y == self.classes_[0], -1, 1)
 
-        # Размеры данных
         n_samples, n_features = X.shape
 
-        # Инициализация весов и смещения
         self.weights = np.ones(n_features)
         self.bias = 0
+        self.loss_history = []
 
-        # Градиентный спуск
         for i in range(self.max_iter):
             loss, dW, db = self._loss_and_gradient(X, y_binary)
 
-            # Обновление весов и смещения
             self.weights -= self.learning_rate * dW
             self.bias -= self.learning_rate * db
-
-            # Вывод текущей потери каждые 100 итераций
-            if i % 100 == 0:
-                print(f"Итерация {i}, Потеря: {loss}")
+            self.loss_history.append(loss)
 
     def predict(self, X):
-        """Предсказание меток."""
         y_pred = np.sign(X @ self.weights + self.bias)
         y_pred_labels = np.where(y_pred == -1, self.classes_[0], self.classes_[1])
 
         return y_pred_labels
+
+    def _get_loss_history(self):
+        return self.loss_history
+
+    def get_params(self, deep=True):
+        return {
+            'alpha': self.alpha,
+            'lambda_': self.lambda_,
+            'learning_rate': self.learning_rate,
+            'max_iter': self.max_iter,
+            'loss': self.loss
+        }
+
+    def set_params(self, **params):
+        for key, value in params.items():
+            setattr(self, key, value)
+        return self
 
 
 class SVMClassifier:
@@ -138,6 +127,7 @@ class SVMClassifier:
         self.bias = 0
         self.classes_ = None
         self.X_train = None  # Сохраняем обучающие данные для работы с ядром
+        self.loss_history = []
 
     def _linear_kernel(self, X1, X2):
         return X1 @ X2.T
@@ -151,7 +141,6 @@ class SVMClassifier:
         else:
             gamma = self.gamma
 
-        # Убедимся, что данные — numpy массивы
         X1 = np.asarray(X1)
         X2 = np.asarray(X2)
         K = np.exp(-gamma * np.sum((X1[:, np.newaxis] - X2) ** 2, axis=2))
@@ -167,40 +156,58 @@ class SVMClassifier:
         else:
             raise ValueError(f"Неизвестное ядро: {self.kernel}")
 
+    def _compute_loss(self, margins):
+        return np.maximum(0, 1 - margins).mean()
+
     def fit(self, X, y):
         n_samples, n_features = X.shape
         self.classes_ = np.unique(y)
         if len(self.classes_) != 2:
             raise ValueError("Метод поддерживает только бинарную классификацию.")
 
-        # Преобразуем метки классов: один класс в -1, другой в +1
         y_binary = np.where(y == self.classes_[0], -1, 1)
 
-        # Инициализация альфа (коэффициентов) и смещения
         self.alpha = np.zeros(n_samples)
         self.bias = 0
-        self.X_train = X  # Сохраняем обучающие данные для ядра
+        self.X_train = X
 
-        # Вычисление матрицы ядра
         K = self._compute_kernel(X, X)
 
-        # Градиентный спуск
         for _ in range(self.max_iter):
             margins = y_binary * (K @ self.alpha + self.bias)
             loss_grad = np.where(margins < 1, -y_binary, 0)
 
-            # Обновляем альфа и смещение
             d_alpha = (K.T @ loss_grad) / n_samples + self.C * self.alpha
             d_bias = -loss_grad.mean()
 
             self.alpha -= self.learning_rate * d_alpha
             self.bias -= self.learning_rate * d_bias
 
+            loss = self._compute_loss(margins)
+            self.loss_history.append(loss)
+
     def predict(self, X):
-        # Используем обучающие данные для расчета ядра
         K_test = self._compute_kernel(X, self.X_train)
         margins = K_test @ self.alpha + self.bias
         predictions = np.sign(margins)
         return np.where(predictions == -1, self.classes_[0], self.classes_[1])
+
+    def _get_loss_history(self):
+        return self.loss_history
+
+    def get_params(self, deep=True):
+        return {
+            'kernel': self.kernel,
+            'C': self.C,
+            'learning_rate': self.learning_rate,
+            'max_iter': self.max_iter,
+            'degree': self.degree,
+            'gamma': self.gamma
+        }
+
+    def set_params(self, **params):
+        for key, value in params.items():
+            setattr(self, key, value)
+        return self
 
 
