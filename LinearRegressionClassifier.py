@@ -54,9 +54,8 @@ class LinearClassifierGD:
     def _loss_and_gradient(self, X, y):
         """Вычисляет значение эмпирического риска и его градиент."""
         margins = self._margin(X, y)
-        n_samples, n_features = X.shape  # убрать
 
-        if self.loss == "linear": # даёт всегда 0
+        if self.loss == "linear":
             loss_grad = -y * (margins < 0).astype(float)
         elif self.loss == "squared":
             loss_grad = -2 * y * np.maximum(0, 1 - margins)
@@ -104,7 +103,7 @@ class LinearClassifierGD:
         n_samples, n_features = X.shape
 
         # Инициализация весов и смещения
-        self.weights = np.ones(n_features) #мб имеет смысл изначально ставить веса на 1
+        self.weights = np.ones(n_features)
         self.bias = 0
 
         # Градиентный спуск
@@ -151,6 +150,10 @@ class SVMClassifier:
             gamma = 1 / X1.shape[1]
         else:
             gamma = self.gamma
+
+        # Убедимся, что данные — numpy массивы
+        X1 = np.asarray(X1)
+        X2 = np.asarray(X2)
         K = np.exp(-gamma * np.sum((X1[:, np.newaxis] - X2) ** 2, axis=2))
         return K
 
@@ -174,7 +177,7 @@ class SVMClassifier:
         y_binary = np.where(y == self.classes_[0], -1, 1)
 
         # Инициализация альфа (коэффициентов) и смещения
-        self.alpha = np.ones(n_samples)
+        self.alpha = np.zeros(n_samples)
         self.bias = 0
         self.X_train = X  # Сохраняем обучающие данные для ядра
 
