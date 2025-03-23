@@ -49,8 +49,7 @@ class DecisionTree:
                 right_impurity = self._gini(y_right)
                 impurity = (len(y_left) * left_impurity + len(y_right) * right_impurity) / n_samples
 
-                impurity_reduction = current_impurity - impurity
-                if impurity < best_impurity and impurity_reduction >= self.min_impurity_decrease:
+                if impurity < best_impurity and current_impurity - impurity >= self.min_impurity_decrease:
                     best_impurity = impurity
                     best_feature = feature
                     best_threshold = threshold
