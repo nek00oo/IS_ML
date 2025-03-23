@@ -41,7 +41,7 @@ class ClassifierKNN:
         weights = []
         for dist in distances:
             if self.kernel == 'uniform':
-                weights.append(1 if dist < 1 else 0)
+                weights.append(1/2 if dist < 1 else 0)
             elif self.kernel == 'gaussian':
                 weights.append((1 / np.sqrt(2 * np.pi)) * np.exp(-dist ** 2 / 2))
             elif self.kernel == 'epanechnikov':
@@ -54,7 +54,7 @@ class ClassifierKNN:
 
     def lowess_calculate_weights(self, proportion, kernel='gaussian'):
         if kernel == 'uniform':
-            return 1 if np.abs(proportion) < 1 else 0
+            return 0.5 if np.abs(proportion) < 1 else 0
         elif kernel == 'gaussian':
             return (1 / np.sqrt(2 * np.pi)) * np.exp(-0.5 * (proportion ** 2))
         elif kernel == 'epanechnikov':
@@ -119,8 +119,7 @@ class ClassifierKNN:
 
             prop = len(nearest_labels) / amount_matching_neighbors
             weight = self.lowess_calculate_weights(prop, kernel=kernel)
-            if weight < 0:
-                weight = np.finfo(float).eps
+
             lowess_weights[i] = weight
 
         return lowess_weights
